@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AutoTune NIO — 车载音响 AI 调音助手</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0F0F1A;--card:#1E1E3A;--purple:#6D28D9;--purple-l:#A78BFA;
+  --red:#EF4444;--green:#22C55E;--amber:#F59E0B;--orange:#F97316;
+  --t1:#FFFFFF;--t2:#9CA3AF;--t3:#6B7280;--t4:#4B5563;
+  --blue:#60A5FA;--pink:#F472B6;
+}
+html{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh}
+body{max-width:480px;margin:0 auto;padding:20px 16px 40px;min-height:100vh}
+.header{text-align:center;padding:12px 0 24px}
+.header h1{font-size:26px;font-weight:800;letter-spacing:1px}
+.header p{font-size:13px;color:var(--t3);margin-top:4px}
+
+/* ── Record Stage ── */
+.stage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh}
+.rec-wrap{position:relative;width:220px;height:220px;display:flex;align-items:center;justify-content:center;margin-bottom:32px}
+.ripple{position:absolute;width:180px;height:180px;border-radius:50%;border:2px solid var(--purple);opacity:0;pointer-events:none}
+.recording .ripple{animation:ripple 2s ease-out infinite}
+.ripple:nth-child(2){animation-delay:.66s}
+.ripple:nth-child(3){animation-delay:1.33s}
+@keyframes ripple{0%{transform:scale(1);opacity:.5}100%{transform:scale(2.4);opacity:0}}
+
+.rec-btn{
+  width:180px;height:180px;border-radius:50%;
+  background:var(--card);border:3px solid var(--purple);
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;z-index:2;transition:border-color .3s,transform .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.rec-btn:active{transform:scale(.96)}
+.recording .rec-btn{border-color:var(--red);animation:glow 1.6s ease-in-out infinite alternate}
+@keyframes glow{0%{box-shadow:0 0 20px rgba(239,68,68,.15)}100%{box-shadow:0 0 40px rgba(239,68,68,.35)}}
+.rec-btn .icon{font-size:44px}
+.rec-btn .label{font-size:15px;font-weight:600;color:var(--purple-l);margin-top:4px}
+.rec-btn .timer{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--t1)}
+.rec-btn .sublabel{font-size:13px;color:var(--red);margin-top:2px}
+.rec-btn .dot{width:14px;height:14px;border-radius:50%;background:var(--red);margin-bottom:8px;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:.4}}
+.progress-bar{position:absolute;bottom:0;left:0;height:4px;background:var(--red);border-radius:2px;transition:width .3s linear}
+.hint{color:var(--t4);font-size:13px;text-align:center;line-height:22px;margin-top:8px}
+
+/* ── Loading ── */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh}
+.spinner{width:56px;height:56px;border:3px solid transparent;border-top-color:var(--purple);border-right-color:var(--purple-l);border-radius:50%;animation:spin 1.2s linear infinite;margin-bottom:28px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading h3{color:var(--t2);font-size:17px;font-weight:600;animation:pulse-t 2s ease-in-out infinite}
+.loading p{color:var(--t4);font-size:13px;margin-top:8px}
+@keyframes pulse-t{0%,100%{opacity:.6}50%{opacity:1}}
+
+/* ── Result ── */
+.result{animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.score-card{background:var(--card);border-radius:18px;padding:20px;margin-bottom:16px;border:1px solid rgba(255,255,255,.04)}
+.score-row{display:flex;justify-content:space-between;align-items:flex-start}
+.score-num{font-size:48px;font-weight:800;font-variant-numeric:tabular-nums}
+.grade{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;margin-left:10px;vertical-align:middle}
+.score-meta{text-align:right;color:var(--t4);font-size:11px;line-height:1.8;font-variant-numeric:tabular-nums}
+.summary{color:var(--t2);font-size:13px;margin-top:12px;line-height:20px}
+
+/* Chart */
+.chart-wrap{background:var(--card);border-radius:16px;padding:16px 8px;margin-bottom:16px;text-align:center}
+.chart-wrap h4{color:var(--t2);font-size:13px;font-weight:600;margin-bottom:8px;text-align:left;padding-left:8px}
+canvas{width:100%;border-radius:6px}
+
+/* Instruction */
+.instruction{background:rgba(109,40,217,.08);border:1px solid rgba(109,40,217,.2);border-radius:14px;padding:16px;margin-bottom:20px;display:flex;gap:12px}
+.instruction .ico{width:36px;height:36px;border-radius:10px;background:rgba(109,40,217,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.instruction h5{color:var(--purple-l);font-size:13px;font-weight:700;margin-bottom:6px}
+.instruction p{color:var(--t2);font-size:12px;line-height:19px}
+
+/* Section */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sec-hdr h3{font-size:17px;font-weight:700}
+.sec-hdr span{color:var(--t4);font-size:12px;font-weight:600}
+
+/* Filter Card */
+.fcard{background:var(--card);border-radius:14px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(255,255,255,.04)}
+.fcard .left{display:flex;align-items:center;gap:12px}
+.fcard .idx{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.fcard .type-name{font-size:13px;font-weight:700;margin-bottom:2px}
+.fcard .freq{color:var(--t2);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.fcard .right{display:flex;align-items:center;gap:10px}
+.gain-pill{border-radius:10px;padding:8px 12px;min-width:76px;text-align:center}
+.gain-pill .val{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+.gain-pill .unit{font-size:10px;font-weight:600;opacity:.7;margin-left:2px}
+.q-box{text-align:center;min-width:36px}
+.q-box .ql{color:var(--t4);font-size:9px;font-weight:600;letter-spacing:.5px}
+.q-box .qv{color:var(--t2);font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* Legend */
+.legend{background:var(--card);border-radius:12px;padding:14px;margin-top:12px;border:1px solid rgba(255,255,255,.04);display:flex;flex-wrap:wrap;gap:6px 16px}
+.legend-item{display:flex;align-items:center;gap:6px;color:var(--t4);font-size:11px}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+.retry-btn{
+  width:100%;padding:16px;border-radius:32px;border:1px solid var(--purple);
+  background:var(--card);color:var(--purple-l);font-size:16px;font-weight:700;
+  cursor:pointer;margin-top:24px;transition:background .2s;
+}
+.retry-btn:active{background:rgba(109,40,217,.15)}
+.hidden{display:none!important}
+
+/* Signal selector */
+.signal-sel{display:flex;gap:8px;margin-bottom:24px;width:100%;max-width:320px}
+.sig-opt{flex:1;padding:10px 8px;border-radius:12px;border:2px solid var(--t4);background:transparent;color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.sig-opt.active{border-color:var(--purple);background:rgba(109,40,217,.1);color:var(--purple-l)}
+.sig-opt .sig-icon{font-size:20px;display:block;margin-bottom:4px}
+.sig-opt .sig-desc{font-size:10px;color:var(--t4);font-weight:400;margin-top:2px}
+.sig-opt.active .sig-desc{color:var(--purple-l);opacity:.7}
+.freq-indicator{color:var(--purple-l);font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:6px;min-height:20px;text-align:center;opacity:0;transition:opacity .3s}
+.freq-indicator.visible{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>AutoTune NIO</h1>
+  <p>车载音响 AI 音准检测 · 蔚来 Pro EQ</p>
+</div>
+
+<!-- ── Record ── -->
+<div id="stageRecord" class="stage">
+  <div class="signal-sel">
+    <button class="sig-opt active" onclick="selectSignal('sweep')" id="optSweep">
+      <span class="sig-icon">〰️</span>频率扫描
+      <div class="sig-desc">从低到高逐频扫描<br>推荐 · 更精准</div>
+    </button>
+    <button class="sig-opt" onclick="selectSignal('pink')" id="optPink">
+      <span class="sig-icon">📊</span>粉红噪音
+      <div class="sig-desc">全频段同时播放<br>经典测试信号</div>
+    </button>
+  </div>
+  <div class="rec-wrap" id="recWrap">
+    <div class="ripple"></div><div class="ripple"></div><div class="ripple"></div>
+    <button class="rec-btn" id="recBtn" onclick="toggleRecord()">
+      <div id="recIdle"><span class="icon">🎤</span><span class="label">开始检测</span></div>
+      <div id="recActive" class="hidden">
+        <span class="dot"></span>
+        <span class="timer" id="timer">00:30</span>
+        <span class="sublabel">录音中</span>
+      </div>
+      <div class="progress-bar" id="progressBar" style="width:0%"></div>
+    </button>
+  </div>
+  <div class="freq-indicator" id="freqIndicator"></div>
+  <div class="hint" id="hintIdle">连接蓝牙后点击开始<br>手机自动播放测试音到车机 · 同时录制声场 30 秒</div>
+  <div class="hint hidden" id="hintRec">🔊 测试音播放中 · 点击按钮可提前结束</div>
+</div>
+
+<!-- ── Loading ── -->
+<div id="stageLoading" class="loading hidden">
+  <div class="spinner"></div>
+  <h3>正在分析频响曲线...</h3>
+  <p>AI 引擎计算中，请稍候</p>
+</div>
+
+<!-- ── Result ── -->
+<div id="stageResult" class="result hidden">
+  <div class="score-card">
+    <div class="score-row">
+      <div>
+        <div style="color:var(--t3);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">频响平坦度</div>
+        <span class="score-num" id="scoreNum"></span>
+        <span class="grade" id="gradeLabel"></span>
+      </div>
+      <div class="score-meta" id="scoreMeta"></div>
+    </div>
+    <div class="summary" id="summaryText"></div>
+  </div>
+
+  <div class="chart-wrap">
+    <h4>EQ 调节曲线</h4>
+    <canvas id="eqCanvas" height="200"></canvas>
+  </div>
+
+  <div class="instruction">
+    <div class="ico">🚗</div>
+    <div>
+      <h5>如何输入到蔚来车机</h5>
+      <p>车机设置 → 声音 → Pro EQ → 自定义模式<br>依次调节下方 7 个节点的频率、增益和 Q 值<br>建议从低频到高频逐一设定，设置后试听微调</p>
+    </div>
+  </div>
+
+  <div class="sec-hdr">
+    <h3>调音参数</h3>
+    <span id="filterCount"></span>
+  </div>
+
+  <div id="filterList"></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>增益提升 (Boost)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>增益衰减 (Cut)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple-l)"></div>Bell</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Low Shelf</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--pink)"></div>High Shelf</div>
+  </div>
+
+  <button class="retry-btn" onclick="resetApp()">重新检测</button>
+</div>
+
+<script>
+const DURATION = 30;
+let mediaRecorder = null;
+let chunks = [];
+let countdown = DURATION;
+let timerId = null;
+let isRecording = false;
+let audioCtx = null;
+let sourceNodes = [];
+let signalMode = 'sweep';
+let freqDisplayId = null;
+
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+function selectSignal(mode){
+  signalMode = mode;
+  document.getElementById('optSweep').classList.toggle('active', mode==='sweep');
+  document.getElementById('optPink').classList.toggle('active', mode==='pink');
+}
+
+/* ── Pink Noise Generator ── */
+function createPinkNoise(ctx){
+  const bufferSize = 4096;
+  const node = ctx.createScriptProcessor(bufferSize, 0, 1);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  node.onaudioprocess = function(e){
+    const output = e.outputBuffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++){
+      const white = Math.random()*2-1;
+      b0 = 0.99886*b0 + white*0.0555179;
+      b1 = 0.99332*b1 + white*0.0750759;
+      b2 = 0.96900*b2 + white*0.1538520;
+      b3 = 0.86650*b3 + white*0.3104856;
+      b4 = 0.55000*b4 + white*0.5329522;
+      b5 = -0.7616*b5 - white*0.0168980;
+      output[i] = (b0+b1+b2+b3+b4+b5+b6+white*0.5362)*0.11;
+      b6 = white*0.115926;
+    }
+  };
+  return node;
+}
+
+/* ── Log Sine Sweep Generator (20Hz → 20kHz) ── */
+function createSweepBuffer(ctx, duration){
+  const sr = ctx.sampleRate;
+  const len = Math.floor(sr * duration);
+  const buf = ctx.createBuffer(1, len, sr);
+  const data = buf.getChannelData(0);
+  const f1 = 20, f2 = 20000;
+  const logRatio = Math.log(f2/f1);
+  for(let i=0; i<len; i++){
+    const t = i/sr;
+    const phase = 2*Math.PI*f1*duration/logRatio * (Math.exp(t/duration*logRatio)-1);
+    data[i] = Math.sin(phase) * 0.8;
+  }
+  return buf;
+}
+
+function startTestSignal(){
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.85;
+  gain.connect(audioCtx.destination);
+
+  if(signalMode === 'sweep'){
+    const buf = createSweepBuffer(audioCtx, DURATION);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    src.start();
+    sourceNodes.push(src);
+    startFreqDisplay();
+  } else {
+    const pink = createPinkNoise(audioCtx);
+    pink.connect(gain);
+    sourceNodes.push(pink);
+  }
+}
+
+function stopTestSignal(){
+  clearInterval(freqDisplayId);
+  const fi = document.getElementById('freqIndicator');
+  if(fi){ fi.classList.remove('visible'); fi.textContent=''; }
+  sourceNodes.forEach(n=>{ try{n.stop();}catch(e){} try{n.disconnect();}catch(e){} });
+  sourceNodes = [];
+  if(audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
+}
+
+function startFreqDisplay(){
+  const fi = document.getElementById('freqIndicator');
+  fi.classList.add('visible');
+  const f1=20, f2=20000, logR=Math.log(f2/f1);
+  const startT = Date.now();
+  freqDisplayId = setInterval(()=>{
+    const elapsed = (Date.now()-startT)/1000;
+    const t = Math.min(elapsed/DURATION, 1);
+    const freq = f1 * Math.exp(t*logR);
+    if(freq>=1000) fi.textContent = '▸ '+(freq/1000).toFixed(1)+' kHz';
+    else fi.textContent = '▸ '+Math.round(freq)+' Hz';
+  }, 80);
+}
+
+async function toggleRecord(){
+  if(!isRecording) await startRec();
+  else stopRec();
+}
+
+async function startRec(){
+  try{
+    startTestSignal();
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ sampleRate:48000, channelCount:1, echoCancellation:false, noiseSuppression:false, autoGainControl:false }});
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    chunks = [];
+    mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+    mediaRecorder.onstop = () => { stream.getTracks().forEach(t=>t.stop()); stopTestSignal(); uploadAudio(); };
+    mediaRecorder.start(250);
+    isRecording = true;
+    countdown = DURATION;
+    document.getElementById('recWrap').classList.add('recording');
+    hide('recIdle'); show('recActive');
+    hide('hintIdle'); show('hintRec');
+    updateTimer();
+    timerId = setInterval(()=>{
+      countdown--;
+      updateTimer();
+      const pct = ((DURATION-countdown)/DURATION)*100;
+      document.getElementById('progressBar').style.width = pct+'%';
+      if(countdown<=0) stopRec();
+    },1000);
+  }catch(e){
+    stopTestSignal();
+    alert('无法访问麦克风：'+e.message);
+  }
+}
+
+function stopRec(){
+  if(!mediaRecorder||mediaRecorder.state==='inactive') return;
+  clearInterval(timerId);
+  mediaRecorder.stop();
+  isRecording = false;
+  document.getElementById('recWrap').classList.remove('recording');
+  hide('stageRecord');
+  show('stageLoading');
+}
+
+function updateTimer(){
+  const m = Math.floor(countdown/60);
+  const s = countdown%60;
+  document.getElementById('timer').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+async function uploadAudio(){
+  const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+  const ext = mediaRecorder.mimeType.includes('webm') ? '.webm' : '.ogg';
+  const fd = new FormData();
+  fd.append('file', blob, 'recording'+ext);
+  try{
+    const r = await fetch('/api/analyze', { method:'POST', body: fd });
+    if(!r.ok){
+      const err = await r.json().catch(()=>({detail:'HTTP '+r.status}));
+      throw new Error(err.detail||'HTTP '+r.status);
+    }
+    const data = await r.json();
+    hide('stageLoading');
+    renderResult(data);
+    show('stageResult');
+  }catch(e){
+    hide('stageLoading');
+    alert('分析失败：'+e.message);
+    resetApp();
+  }
+}
+
+function resetApp(){
+  stopTestSignal();
+  hide('stageResult'); hide('stageLoading');
+  show('stageRecord');
+  show('recIdle'); hide('recActive');
+  show('hintIdle'); hide('hintRec');
+  document.getElementById('progressBar').style.width='0%';
+  countdown = DURATION;
+  updateTimer();
+}
+
+/* ── Render Result ── */
+function scoreColor(s){ return s>=80?'var(--green)':s>=60?'var(--amber)':'var(--red)'; }
+function scoreGrade(s){ return s>=90?'极佳':s>=80?'优秀':s>=60?'良好':s>=40?'一般':'较差'; }
+function gainColor(g){ return g>0?'var(--green)':g<0?'var(--orange)':'var(--t3)'; }
+function gainBg(g){ return g>0?'rgba(34,197,94,.08)':g<0?'rgba(249,115,22,.08)':'rgba(107,114,128,.08)'; }
+function typeColor(t){ return t==='Bell'?'var(--purple-l)':t==='Low Shelf'?'var(--blue)':'var(--pink)'; }
+function fmtFreq(hz){ return hz>=1000?(hz/1000).toFixed(1)+'k':String(hz); }
+
+function renderResult(d){
+  const sc = d.overall_score;
+  const el = (id)=>document.getElementById(id);
+  el('scoreNum').textContent = sc;
+  el('scoreNum').style.color = scoreColor(sc);
+  el('gradeLabel').textContent = scoreGrade(sc);
+  el('gradeLabel').style.color = scoreColor(sc);
+  el('gradeLabel').style.background = scoreColor(sc).replace(')',',0.1)').replace('var(','rgba(');
+  // manual grade bg
+  const gc = sc>=80?'rgba(34,197,94,.1)':sc>=60?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)';
+  el('gradeLabel').style.background = gc;
+  el('scoreMeta').innerHTML = `采样率 ${(d.sample_rate/1000).toFixed(0)}kHz<br>时长 ${d.duration.toFixed(1)}s`;
+  el('summaryText').textContent = d.summary;
+  el('filterCount').textContent = d.eq_filters.length+' 组滤波器';
+
+  // Filter cards
+  let html = '';
+  d.eq_filters.forEach((f,i)=>{
+    const tc = typeColor(f.type);
+    const gc2 = gainColor(f.gain);
+    const gb = gainBg(f.gain);
+    const sign = f.gain>0?'+':'';
+    html += `<div class="fcard">
+      <div class="left">
+        <div class="idx" style="background:${tc}18;color:${tc}">${i+1}</div>
+        <div>
+          <div class="type-name" style="color:${tc}">${f.type}</div>
+          <div class="freq">${fmtFreq(f.frequency)} Hz</div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="gain-pill" style="background:${gb}">
+          <span class="val" style="color:${gc2}">${sign}${f.gain.toFixed(1)}</span>
+          <span class="unit" style="color:${gc2}">dB</span>
+        </div>
+        <div class="q-box"><div class="ql">Q</div><div class="qv">${f.q_factor.toFixed(1)}</div></div>
+      </div>
+    </div>`;
+  });
+  el('filterList').innerHTML = html;
+
+  drawChart(d.eq_filters);
+}
+
+/* ── EQ Curve Canvas ── */
+function drawChart(filters){
+  const canvas = document.getElementById('eqCanvas');
+  const dpr = window.devicePixelRatio||1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width*dpr;
+  canvas.height = 200*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W = rect.width, H = 200;
+  const pad = {t:20,r:16,b:28,l:38};
+  const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
+  const fMin = Math.log10(20), fMax = Math.log10(20000), gMax = 12;
+  const fx = f => pad.l+((Math.log10(f)-fMin)/(fMax-fMin))*pw;
+  const gy = g => pad.t+((gMax-g)/(gMax*2))*ph;
+
+  // Background
+  ctx.fillStyle='#12122A';
+  ctx.beginPath();
+  ctx.roundRect(pad.l,pad.t,pw,ph,4);
+  ctx.fill();
+
+  // Grid
+  ctx.font='9px -apple-system,sans-serif';
+  ctx.textAlign='end';
+  [-10,-5,0,5,10].forEach(g=>{
+    const y=gy(g);
+    ctx.strokeStyle = g===0?'rgba(255,255,255,.18)':'rgba(255,255,255,.06)';
+    ctx.lineWidth = g===0?1:.5;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
+    ctx.fillStyle='#4B5563';
+    ctx.fillText((g>0?'+':'')+g,pad.l-4,y+3.5);
+  });
+  ctx.textAlign='center';
+  [20,50,100,200,500,1000,2000,5000,10000,20000].forEach(f=>{
+    const x=fx(f);
+    ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=.5;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
+    ctx.fillStyle='#4B5563';
+    ctx.fillText(f>=1000?(f/1000)+'k':f,x,H-6);
+  });
+
+  // Composite curve
+  function filterResp(freq,flt){
+    const {frequency:fc,gain,q_factor:Q,type}=flt;
+    if(type==='Bell'){const r=freq/fc,bw=r-1/r,x=bw*Q;return gain/(1+x*x);}
+    if(type==='Low Shelf'){const r=freq/fc;if(r<=.25)return gain;if(r>=4)return 0;const t=(Math.log10(r)-Math.log10(.25))/(Math.log10(4)-Math.log10(.25));return gain*(1-t*t);}
+    const r=freq/fc;if(r>=4)return gain;if(r<=.25)return 0;const t=(Math.log10(r)-Math.log10(.25))/(Math.log10(4)-Math.log10(.25));return gain*t*t;
+  }
+  const pts=[];
+  for(let i=0;i<=150;i++){
+    const lf=fMin+(i/150)*(fMax-fMin);
+    const f=Math.pow(10,lf);
+    let g=0;filters.forEach(fl=>{g+=filterResp(f,fl);});
+    pts.push({x:fx(f),y:gy(g)});
+  }
+
+  // Fill
+  const zeroY=gy(0);
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],mx=(p.x+c.x)/2;ctx.bezierCurveTo(mx,p.y,mx,c.y,c.x,c.y);}
+  ctx.lineTo(pts[pts.length-1].x,zeroY);ctx.lineTo(pts[0].x,zeroY);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ph);
+  grad.addColorStop(0,'rgba(109,40,217,.3)');grad.addColorStop(1,'rgba(109,40,217,.02)');
+  ctx.fillStyle=grad;ctx.fill();
+
+  // Curve line
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],mx=(p.x+c.x)/2;ctx.bezierCurveTo(mx,p.y,mx,c.y,c.x,c.y);}
+  ctx.strokeStyle='#A78BFA';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();
+
+  // 0dB dashed
+  ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,zeroY);ctx.lineTo(pad.l+pw,zeroY);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Nodes
+  filters.forEach(f=>{
+    const x=fx(f.frequency);
+    let cg=0;filters.forEach(fl=>{cg+=filterResp(f.frequency,fl);});
+    const y=gy(cg);
+    const col=f.gain>0?'#22C55E':f.gain<0?'#F97316':'#6B7280';
+    // stem
+    ctx.setLineDash([2,2]);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.globalAlpha=.5;
+    ctx.beginPath();ctx.moveTo(x,zeroY);ctx.lineTo(x,y);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+    // glow
+    ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle=col;ctx.globalAlpha=.15;ctx.fill();ctx.globalAlpha=1;
+    // dot
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    ctx.strokeStyle='#0F0F1A';ctx.lineWidth=1.5;ctx.stroke();
+    // label
+    ctx.fillStyle=col;ctx.font='bold 8px -apple-system,sans-serif';ctx.textAlign='center';
+    ctx.fillText((f.gain>0?'+':'')+f.gain.toFixed(1),x,y-10);
+  });
+
+  // axis label
+  ctx.fillStyle='#6B7280';ctx.font='8px -apple-system,sans-serif';ctx.textAlign='center';
+  ctx.fillText('频率 (Hz)',pad.l+pw/2,H-16);
+}
+</script>
+</body>
+</html>
