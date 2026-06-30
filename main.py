@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
-from app.api.routes import audio, eq
+from app.api.routes import aesthetic, audio, eq
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -24,6 +24,7 @@ app.add_middleware(
 
 app.include_router(audio.router, prefix="/api")
 app.include_router(eq.router, prefix="/api")
+app.include_router(aesthetic.router, prefix="/api")
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -31,6 +32,11 @@ STATIC_DIR = Path(__file__).parent / "static"
 @app.get("/")
 async def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/aesthetic")
+async def aesthetic_app():
+    return FileResponse(STATIC_DIR / "aesthetic.html")
 
 
 @app.get("/health")

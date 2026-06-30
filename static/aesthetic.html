@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FAFAF8">
+<title>审美训练 · 每日题</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FAFAF8;--surface:#FFFFFF;--surface-2:#F4F3F0;
+  --ink:#1A1A1A;--ink-2:#5C5C5C;--ink-3:#9A9A9A;
+  --accent:#2D2D2D;--accent-soft:#E8E6E1;
+  --correct:#2E7D52;--correct-bg:#E8F5EE;
+  --wrong:#C0392B;--wrong-bg:#FDEEEC;
+  --gold:#C9A227;--gold-bg:#FBF5E6;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 2px 12px rgba(0,0,0,.06);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+html{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{max-width:430px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:calc(72px + var(--safe-b))}
+
+/* ── Tab Bar ── */
+.tab-bar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:430px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid rgba(0,0,0,.06);
+  display:flex;padding:8px 16px calc(8px + var(--safe-b));
+  z-index:100;
+}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;cursor:pointer;border:none;background:none;color:var(--ink-3);font-size:10px;font-weight:500;transition:color .2s;-webkit-tap-highlight-color:transparent}
+.tab-item.active{color:var(--ink)}
+.tab-item .tab-icon{font-size:22px;line-height:1}
+
+/* ── Screens ── */
+.screen{display:none;padding:0 20px 20px;animation:fadeUp .35s ease}
+.screen.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ── Header ── */
+.app-header{padding:52px 0 20px;text-align:center}
+.app-header h1{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.app-header .sub{font-size:13px;color:var(--ink-3);margin-top:4px}
+
+/* ── Streak Card ── */
+.streak-card{
+  background:var(--ink);color:#fff;border-radius:20px;padding:24px;
+  margin-bottom:16px;position:relative;overflow:hidden;
+}
+.streak-card::after{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.06)}
+.streak-row{display:flex;justify-content:space-between;align-items:flex-end}
+.streak-num{font-size:48px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.streak-label{font-size:13px;opacity:.7;margin-top:4px}
+.streak-fire{font-size:36px}
+.streak-stats{display:flex;gap:24px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)}
+.streak-stat .val{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.streak-stat .lbl{font-size:11px;opacity:.6;margin-top:2px}
+
+/* ── Daily Card ── */
+.daily-card{
+  background:var(--surface);border-radius:var(--radius);padding:20px;
+  box-shadow:var(--shadow);margin-bottom:16px;
+}
+.daily-card h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.daily-card p{font-size:13px;color:var(--ink-2);line-height:1.5}
+.progress-bar-wrap{margin-top:16px}
+.progress-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-bottom:6px}
+.progress-track{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--ink);border-radius:3px;transition:width .4s ease}
+.start-btn{
+  width:100%;padding:15px;border:none;border-radius:14px;
+  background:var(--ink);color:#fff;font-size:16px;font-weight:600;
+  cursor:pointer;margin-top:16px;transition:transform .15s,opacity .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.start-btn:active{transform:scale(.98)}
+.start-btn:disabled{opacity:.4;cursor:not-allowed}
+.start-btn.done{background:var(--correct);cursor:default}
+
+/* ── Category Grid ── */
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.cat-chip{
+  background:var(--surface);border-radius:var(--radius-sm);padding:14px 8px;
+  text-align:center;box-shadow:var(--shadow);
+}
+.cat-chip .icon{font-size:24px;margin-bottom:4px}
+.cat-chip .name{font-size:12px;font-weight:600;color:var(--ink-2)}
+.cat-chip .count{font-size:11px;color:var(--ink-3);margin-top:2px}
+
+/* ── Question Screen ── */
+.q-header{padding:48px 0 16px;display:flex;align-items:center;gap:12px}
+.q-back{width:36px;height:36px;border-radius:50%;border:none;background:var(--surface);box-shadow:var(--shadow);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.q-progress{flex:1}
+.q-progress-text{font-size:12px;color:var(--ink-3);margin-bottom:6px;display:flex;justify-content:space-between}
+.q-cat-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:12px}
+.q-title{font-size:20px;font-weight:700;line-height:1.4;margin-bottom:6px}
+.q-hint{font-size:13px;color:var(--ink-3);margin-bottom:20px;line-height:1.5}
+
+/* ── Options ── */
+.options{display:flex;flex-direction:column;gap:12px}
+.option-card{
+  background:var(--surface);border-radius:var(--radius);padding:16px;
+  box-shadow:var(--shadow);cursor:pointer;border:2px solid transparent;
+  transition:border-color .2s,transform .15s,box-shadow .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.option-card:active{transform:scale(.98)}
+.option-card.selected{border-color:var(--ink);box-shadow:var(--shadow-lg)}
+.option-card.correct{border-color:var(--correct);background:var(--correct-bg)}
+.option-card.wrong{border-color:var(--wrong);background:var(--wrong-bg)}
+.option-label{font-size:12px;font-weight:700;color:var(--ink-3);margin-bottom:10px;letter-spacing:.5px}
+.option-visual{min-height:120px;border-radius:var(--radius-sm);overflow:hidden;display:flex;align-items:center;justify-content:center}
+
+/* ── Visual Renderers ── */
+.vis-palette{display:flex;height:80px;width:100%;border-radius:8px;overflow:hidden}
+.vis-palette span{flex:1}
+.vis-gradient{width:100%;height:80px;border-radius:8px}
+.vis-card-on-bg{width:100%;height:100px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:16px}
+.vis-card-on-bg .inner{padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600}
+.vis-ui-mock{width:100%;padding:16px;border-radius:8px}
+.vis-ui-mock .bar{height:8px;border-radius:4px;margin-bottom:8px}
+.vis-ui-mock .bar.short{width:60%}
+.vis-ui-mock .btn{display:inline-block;padding:8px 20px;border-radius:6px;font-size:12px;font-weight:600;margin-top:8px}
+.vis-text-block{width:100%;padding:20px;border-radius:8px;font-size:15px;line-height:1.6}
+.vis-typo{width:100%;padding:16px}
+.vis-typo .t{margin-bottom:4px}
+.vis-typo .s{opacity:.7}
+.vis-para{width:100%;padding:16px;font-size:14px}
+.vis-num-list{width:100%;padding:12px 16px;font-size:16px;font-weight:600}
+.vis-num-list div{padding:4px 0}
+.vis-btn{display:inline-block;border-radius:8px;text-align:center}
+.vis-card-layout{width:100%;background:var(--surface-2);border-radius:8px}
+.vis-card-layout .block{background:var(--surface);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.vis-card-layout .title-bar{height:10px;border-radius:3px;background:#ddd;margin-bottom:8px}
+.vis-card-layout .text-bar{height:6px;border-radius:3px;background:#eee;margin-bottom:4px}
+.vis-align{width:100%;padding:12px}
+.vis-align .row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.vis-align .dot{width:24px;height:24px;border-radius:50%;background:#ddd;flex-shrink:0}
+.vis-align .line{height:8px;border-radius:4px;background:#eee}
+.vis-grid{display:grid;gap:8px;width:100%;padding:4px}
+.vis-grid .cell{aspect-ratio:1;border-radius:6px;background:#ddd}
+.vis-ws{width:100%;background:var(--surface-2);border-radius:8px}
+.vis-ws .content{background:var(--surface);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.vis-list{width:100%}
+.vis-list .item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0}
+.vis-list .item:last-child{border-bottom:none}
+.vis-list .avatar{width:32px;height:32px;border-radius:50%;background:#ddd;flex-shrink:0}
+.vis-list .text-line{height:8px;border-radius:4px;background:#eee}
+.vis-icon-row{display:flex;gap:16px;justify-content:center;padding:16px;border-radius:8px;font-size:28px}
+.vis-tags{display:flex;flex-wrap:wrap;gap:8px;padding:12px;justify-content:center}
+.vis-tags span{padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600}
+.vis-input{width:100%;padding:16px}
+.vis-input .field{border:2px solid;padding:10px 14px;border-radius:8px;font-size:14px;color:#999}
+.vis-layered{width:100%;padding:16px;border-radius:8px}
+.vis-layered .card{padding:16px;border-radius:8px}
+.vis-layered .card .t{font-size:14px;font-weight:600;margin-bottom:4px}
+.vis-layered .card .s{font-size:12px}
+.vis-btn-group{display:flex;justify-content:center;padding:12px}
+.vis-btn-group button{border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:default}
+.vis-btn-group .cancel{background:#eee;color:#666}
+.vis-btn-group .confirm{background:#333;color:#fff}
+.vis-form{width:100%;padding:12px}
+.vis-form .fg{margin-bottom:12px}
+.vis-form .fg:last-child{margin-bottom:0}
+.vis-form label{display:block;font-size:11px;color:#999;margin-bottom:4px}
+.vis-form .input{height:32px;background:#f5f5f5;border-radius:6px;border:1px solid #eee}
+.vis-icon-text{display:flex;align-items:center;padding:16px;font-size:16px;font-weight:500}
+.vis-page-margin{width:100%;background:#eee;border-radius:8px;overflow:hidden}
+.vis-page-margin .inner{background:var(--surface);border-radius:4px}
+.vis-page-margin .line{height:6px;background:#f0f0f0;border-radius:3px;margin-bottom:6px}
+.vis-card-pad{width:100%;background:var(--surface-2);border-radius:8px}
+.vis-card-pad .inner{background:var(--surface);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.vis-card-pad .t{font-size:13px;font-weight:600;margin-bottom:4px}
+.vis-card-pad .s{font-size:11px;color:#999}
+
+/* ── Explanation ── */
+.explanation{
+  margin-top:16px;padding:16px;border-radius:var(--radius);
+  background:var(--surface);box-shadow:var(--shadow);
+  animation:fadeUp .3s ease;
+}
+.explanation .result-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:10px}
+.explanation .result-tag.correct{background:var(--correct-bg);color:var(--correct)}
+.explanation .result-tag.wrong{background:var(--wrong-bg);color:var(--wrong)}
+.explanation p{font-size:14px;line-height:1.7;color:var(--ink-2)}
+.next-btn{
+  width:100%;padding:15px;border:none;border-radius:14px;
+  background:var(--ink);color:#fff;font-size:16px;font-weight:600;
+  cursor:pointer;margin-top:16px;-webkit-tap-highlight-color:transparent;
+}
+.next-btn:active{transform:scale(.98)}
+
+/* ── Complete Screen ── */
+.complete{text-align:center;padding:60px 0 20px}
+.complete .emoji{font-size:64px;margin-bottom:16px}
+.complete h2{font-size:24px;font-weight:800;margin-bottom:8px}
+.complete .score{font-size:48px;font-weight:800;color:var(--ink);margin:16px 0}
+.complete .score span{font-size:20px;color:var(--ink-3)}
+.complete p{font-size:14px;color:var(--ink-2);line-height:1.6}
+
+/* ── Stats Screen ── */
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:12px}
+.stat-card h4{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--ink-2)}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--surface-2)}
+.stat-row:last-child{border-bottom:none}
+.stat-row .label{font-size:14px;display:flex;align-items:center;gap:8px}
+.stat-row .val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px}
+.cal-day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-3)}
+.cal-day.done{background:var(--correct-bg);color:var(--correct);font-weight:700}
+.cal-day.today{border:2px solid var(--ink);font-weight:700;color:var(--ink)}
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.cal-header span{text-align:center;font-size:10px;color:var(--ink-3);font-weight:600}
+
+/* ── Loading ── */
+.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh}
+.spinner{width:40px;height:40px;border:3px solid var(--surface-2);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-state p{margin-top:16px;font-size:14px;color:var(--ink-3)}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ═══ Home Screen ═══ -->
+<div id="screenHome" class="screen active">
+  <div class="app-header">
+    <h1>审美训练</h1>
+    <p class="sub" id="homeDate"></p>
+  </div>
+
+  <div class="streak-card">
+    <div class="streak-row">
+      <div>
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-label">连续打卡天数</div>
+      </div>
+      <div class="streak-fire" id="streakFire">✨</div>
+    </div>
+    <div class="streak-stats">
+      <div class="streak-stat">
+        <div class="val" id="totalAnswered">0</div>
+        <div class="lbl">累计答题</div>
+      </div>
+      <div class="streak-stat">
+        <div class="val" id="totalCorrect">0</div>
+        <div class="lbl">答对题数</div>
+      </div>
+      <div class="streak-stat">
+        <div class="val" id="accuracy">—</div>
+        <div class="lbl">正确率</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="daily-card">
+    <h3>今日训练</h3>
+    <p>每天 5 道精选审美题，提升设计直觉</p>
+    <div class="progress-bar-wrap">
+      <div class="progress-meta">
+        <span id="progressLabel">0 / 5 已完成</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <button class="start-btn" id="startBtn" onclick="startQuiz()">开始今日训练</button>
+  </div>
+
+  <div class="cat-grid" id="catGrid"></div>
+</div>
+
+<!-- ═══ Quiz Screen ═══ -->
+<div id="screenQuiz" class="screen">
+  <div class="q-header">
+    <button class="q-back" onclick="goHome()">←</button>
+    <div class="q-progress">
+      <div class="q-progress-text">
+        <span id="qCounter">第 1 题</span>
+        <span id="qCategory"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="qProgressFill" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div id="qCatBadge" class="q-cat-badge"></div>
+  <h2 class="q-title" id="qTitle"></h2>
+  <p class="q-hint" id="qHint"></p>
+  <div class="options" id="optionsWrap"></div>
+  <div id="explanationWrap"></div>
+</div>
+
+<!-- ═══ Complete Screen ═══ -->
+<div id="screenComplete" class="screen">
+  <div class="complete">
+    <div class="emoji" id="completeEmoji">🎉</div>
+    <h2>今日训练完成</h2>
+    <div class="score" id="completeScore">0<span> / 5</span></div>
+    <p id="completeMsg">坚持每日训练，审美直觉会越来越敏锐</p>
+    <button class="start-btn" onclick="goHome()" style="margin-top:32px">返回首页</button>
+  </div>
+</div>
+
+<!-- ═══ Stats Screen ═══ -->
+<div id="screenStats" class="screen">
+  <div class="app-header">
+    <h1>我的记录</h1>
+    <p class="sub">训练数据与打卡日历</p>
+  </div>
+  <div class="stat-card">
+    <h4>本月打卡</h4>
+    <div class="cal-header">
+      <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+  <div class="stat-card" id="historyCard">
+    <h4>分类正确率</h4>
+    <div id="catStats"></div>
+  </div>
+</div>
+
+<!-- ═══ Loading ═══ -->
+<div id="screenLoading" class="screen">
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>加载今日题目...</p>
+  </div>
+</div>
+
+<!-- ═══ Tab Bar ═══ -->
+<nav class="tab-bar">
+  <button class="tab-item active" id="tabHome" onclick="switchTab('home')">
+    <span class="tab-icon">🏠</span>首页
+  </button>
+  <button class="tab-item" id="tabStats" onclick="switchTab('stats')">
+    <span class="tab-icon">📊</span>记录
+  </button>
+</nav>
+
+<script>
+const STORAGE_KEY = 'aesthetic_training_v1';
+let questions = [];
+let currentIdx = 0;
+let todayAnswers = {};
+let answered = false;
+let stats = loadStats();
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadStats() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultStats();
+  } catch { return defaultStats(); }
+}
+
+function defaultStats() {
+  return { streak: 0, lastDate: '', totalAnswered: 0, totalCorrect: 0, history: {}, categoryStats: {} };
+}
+
+function saveStats() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+}
+
+function getTodayHistory() {
+  const h = stats.history[todayStr()];
+  return h || { answers: {}, score: 0, completed: false };
+}
+
+function updateStreak() {
+  const today = todayStr();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const h = getTodayHistory();
+  if (h.completed && stats.lastDate !== today) {
+    if (stats.lastDate === yesterday) stats.streak++;
+    else if (stats.lastDate !== today) stats.streak = 1;
+    stats.lastDate = today;
+    saveStats();
+  }
+}
+
+function renderHome() {
+  const today = todayStr();
+  const d = new Date();
+  const weekdays = ['日','一','二','三','四','五','六'];
+  document.getElementById('homeDate').textContent =
+    `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 星期${weekdays[d.getDay()]}`;
+
+  const h = getTodayHistory();
+  const done = Object.keys(h.answers).length;
+  const total = questions.length || 5;
+  const pct = Math.round(done / total * 100);
+
+  document.getElementById('streakNum').textContent = stats.streak;
+  document.getElementById('streakFire').textContent = stats.streak >= 7 ? '🔥' : stats.streak >= 3 ? '⭐' : '✨';
+  document.getElementById('totalAnswered').textContent = stats.totalAnswered;
+  document.getElementById('totalCorrect').textContent = stats.totalCorrect;
+  document.getElementById('accuracy').textContent = stats.totalAnswered
+    ? Math.round(stats.totalCorrect / stats.totalAnswered * 100) + '%' : '—';
+
+  document.getElementById('progressLabel').textContent = `${done} / ${total} 已完成`;
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressFill').style.width = pct + '%';
+
+  const btn = document.getElementById('startBtn');
+  if (h.completed) {
+    btn.textContent = '今日已完成 ✓';
+    btn.classList.add('done');
+    btn.disabled = true;
+  } else if (done > 0) {
+    btn.textContent = '继续训练';
+    btn.classList.remove('done');
+    btn.disabled = false;
+  } else {
+    btn.textContent = '开始今日训练';
+    btn.classList.remove('done');
+    btn.disabled = false;
+  }
+}
+
+async function loadQuestions() {
+  showScreen('loading');
+  try {
+    const r = await fetch('/api/aesthetic/daily');
+    const data = await r.json();
+    questions = data.questions;
+    todayAnswers = getTodayHistory().answers;
+    renderCategories();
+    renderHome();
+    showScreen('home');
+  } catch (e) {
+    alert('加载失败，请刷新重试');
+    showScreen('home');
+  }
+}
+
+async function renderCategories() {
+  try {
+    const r = await fetch('/api/aesthetic/stats');
+    const data = await r.json();
+    document.getElementById('catGrid').innerHTML = data.categories.map(c =>
+      `<div class="cat-chip">
+        <div class="icon">${c.icon}</div>
+        <div class="name">${c.label}</div>
+        <div class="count">${c.count} 题</div>
+      </div>`
+    ).join('');
+  } catch {}
+}
+
+function startQuiz() {
+  const h = getTodayHistory();
+  if (h.completed) return;
+  const doneIds = Object.keys(h.answers);
+  currentIdx = questions.findIndex(q => !doneIds.includes(q.id));
+  if (currentIdx < 0) currentIdx = 0;
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  answered = false;
+  const q = questions[currentIdx];
+  document.getElementById('qCounter').textContent = `第 ${currentIdx + 1} 题 / 共 ${questions.length} 题`;
+  document.getElementById('qCategory').textContent = q.category_label;
+  document.getElementById('qProgressFill').style.width = (currentIdx / questions.length * 100) + '%';
+
+  const badge = document.getElementById('qCatBadge');
+  badge.textContent = q.category_icon + ' ' + q.category_label;
+  badge.style.background = q.category_color + '18';
+  badge.style.color = q.category_color;
+
+  document.getElementById('qTitle').textContent = q.title;
+  document.getElementById('qHint').textContent = q.hint;
+  document.getElementById('explanationWrap').innerHTML = '';
+
+  const wrap = document.getElementById('optionsWrap');
+  wrap.innerHTML = q.options.map(opt =>
+    `<div class="option-card" data-key="${opt.key}" onclick="selectOption('${opt.key}')">
+      <div class="option-label">${opt.label}</div>
+      <div class="option-visual">${renderVisual(opt.visual)}</div>
+    </div>`
+  ).join('');
+}
+
+function renderVisual(v) {
+  switch (v.type) {
+    case 'palette':
+      return `<div class="vis-palette">${v.colors.map(c => `<span style="background:${c}"></span>`).join('')}</div>`;
+    case 'gradient':
+      return `<div class="vis-gradient" style="background:linear-gradient(135deg,${v.from},${v.to})"></div>`;
+    case 'card_on_bg':
+      return `<div class="vis-card-on-bg" style="background:${v.bg}">
+        <div class="inner" style="background:${v.card};color:#fff">${v.text}</div>
+      </div>`;
+    case 'ui_mock':
+      return `<div class="vis-ui-mock" style="background:${v.bg}">
+        <div class="bar" style="background:${v.text};width:80%"></div>
+        <div class="bar short" style="background:${v.secondary}"></div>
+        <div class="btn" style="background:${v.accent};color:#fff">按钮</div>
+      </div>`;
+    case 'text_block':
+      return `<div class="vis-text-block" style="background:${v.bg};color:${v.text_color}">${v.text}</div>`;
+    case 'typography':
+      return `<div class="vis-typo">
+        <div class="t" style="font-size:${v.title_size}px;font-weight:${v.title_weight}">${v.title}</div>
+        <div class="s" style="font-size:${v.subtitle_size}px;font-weight:${v.subtitle_weight}">${v.subtitle}</div>
+      </div>`;
+    case 'paragraph':
+      return `<div class="vis-para" style="line-height:${v.line_height};font-size:${v.font_size}px;text-align:${v.align||'left'}">${v.text}</div>`;
+    case 'number_list':
+      return `<div class="vis-num-list" style="font-variant-numeric:${v.tabular?'tabular-nums':'normal'}">${v.items.map(i=>`<div>${i}</div>`).join('')}</div>`;
+    case 'button':
+      return `<div style="text-align:center;padding:12px"><span class="vis-btn" style="font-size:${v.font_size}px;font-weight:${v.font_weight};padding:${v.padding}px ${v.padding*1.5}px;background:${v.bg};color:${v.color}">${v.text}</span></div>`;
+    case 'card_layout':
+      return `<div class="vis-card-layout" style="padding:${v.padding}px">
+        <div class="block" style="padding:${v.padding}px">
+          <div class="title-bar" style="width:70%"></div>
+          <div class="text-bar" style="width:90%"></div>
+          <div class="text-bar" style="width:60%"></div>
+        </div>
+      </div>`;
+    case 'alignment':
+      return `<div class="vis-align">${[0,1,2].map(()=>{
+        const offset = v.aligned ? 0 : Math.floor(Math.random()*20);
+        return `<div class="row"><div class="dot"></div><div class="line" style="width:70%;margin-left:${offset}px"></div></div>`;
+      }).join('')}</div>`;
+    case 'grid':
+      return `<div class="vis-grid" style="grid-template-columns:repeat(${v.columns},1fr);gap:${v.gap}px">
+        ${[0,1,2,3,4,5].map(i=>`<div class="cell" style="${!v.equal && i%2?'width:80%':''}"></div>`).join('')}
+      </div>`;
+    case 'whitespace':
+      return `<div class="vis-ws" style="padding:${v.margin}px">
+        <div class="content" style="padding:${v.margin}px">
+          <div class="title-bar" style="width:60%;height:10px;background:#ddd;border-radius:3px;margin-bottom:8px"></div>
+          <div class="text-bar" style="width:80%;height:6px;background:#eee;border-radius:3px"></div>
+        </div>
+      </div>`;
+    case 'list':
+      return `<div class="vis-list">${[0,1,2].map(i=>{
+        const gap = v.consistent ? v.item_gap : (i===1 ? v.item_gap/3 : v.item_gap);
+        return `<div class="item" style="margin-bottom:${gap}px"><div class="avatar"></div><div style="flex:1"><div class="text-line" style="width:70%"></div></div></div>`;
+      }).join('')}</div>`;
+    case 'icon_row':
+      return `<div class="vis-icon-row" style="background:${v.bg};color:${v.icon_color}">${v.icons.join(' ')}</div>`;
+    case 'tags':
+      return `<div class="vis-tags">${v.tags.map(t=>`<span style="background:${t.bg};color:${t.color}">${t.text}</span>`).join('')}</div>`;
+    case 'input':
+      return `<div class="vis-input"><div class="field" style="border-color:${v.border};background:${v.bg}">请输入内容</div></div>`;
+    case 'layered_card':
+      return `<div class="vis-layered" style="background:${v.page_bg}">
+        <div class="card" style="background:${v.card_bg};color:${v.text};${v.shadow?'box-shadow:0 2px 8px rgba(0,0,0,.1)':''}">
+          <div class="t">卡片标题</div>
+          <div class="s" style="opacity:.6">描述文字内容</div>
+        </div>
+      </div>`;
+    case 'button_group':
+      return `<div class="vis-btn-group" style="gap:${v.gap}px">
+        <button class="cancel" style="padding:10px 24px">${v.buttons[0]}</button>
+        <button class="confirm" style="padding:10px 24px">${v.buttons[1]}</button>
+      </div>`;
+    case 'form_fields':
+      return `<div class="vis-form">
+        <div class="fg" style="margin-bottom:${v.field_gap}px"><label>姓名</label><div class="input"></div></div>
+        <div class="fg"><label>邮箱</label><div class="input"></div></div>
+      </div>`;
+    case 'icon_text':
+      return `<div class="vis-icon-text" style="gap:${v.gap}px"><span>${v.icon}</span><span>${v.text}</span></div>`;
+    case 'page_margin':
+      return `<div class="vis-page-margin"><div class="inner" style="margin:${v.margin}px;padding:12px">
+        <div class="line" style="width:80%"></div><div class="line" style="width:60%"></div>
+      </div></div>`;
+    case 'card_padding':
+      return `<div class="vis-card-pad" style="padding:8px"><div class="inner" style="padding:${v.padding}px">
+        <div class="t">卡片标题</div><div class="s">内容描述</div>
+      </div></div>`;
+    default:
+      return '<div style="padding:20px;color:#999">预览</div>';
+  }
+}
+
+async function selectOption(key) {
+  if (answered) return;
+  answered = true;
+  const q = questions[currentIdx];
+
+  document.querySelectorAll('.option-card').forEach(el => {
+    el.style.pointerEvents = 'none';
+    if (el.dataset.key === key) el.classList.add('selected');
+  });
+
+  try {
+    const r = await fetch('/api/aesthetic/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_id: q.id, choice: key }),
+    });
+    const result = await r.json();
+
+    document.querySelectorAll('.option-card').forEach(el => {
+      if (el.dataset.key === result.correct_answer) el.classList.add('correct');
+      else if (el.dataset.key === key && !result.correct) el.classList.add('wrong');
+    });
+
+    const h = getTodayHistory();
+    h.answers[q.id] = { choice: key, correct: result.correct };
+    h.score = Object.values(h.answers).filter(a => a.correct).length;
+    stats.history[todayStr()] = h;
+    stats.totalAnswered++;
+    if (result.correct) stats.totalCorrect++;
+    const cs = stats.categoryStats[q.category] || { correct: 0, total: 0 };
+    cs.total++;
+    if (result.correct) cs.correct++;
+    stats.categoryStats[q.category] = cs;
+    saveStats();
+
+    const allDone = Object.keys(h.answers).length >= questions.length;
+    if (allDone) {
+      h.completed = true;
+      stats.history[todayStr()] = h;
+      updateStreak();
+      saveStats();
+    }
+
+    document.getElementById('explanationWrap').innerHTML = `
+      <div class="explanation">
+        <div class="result-tag ${result.correct ? 'correct' : 'wrong'}">
+          ${result.correct ? '✓ 回答正确' : '✗ 回答错误'}
+        </div>
+        <p>${result.explanation}</p>
+        <button class="next-btn" onclick="${allDone ? 'showComplete()' : 'nextQuestion()'}">
+          ${allDone ? '查看今日成绩' : '下一题 →'}
+        </button>
+      </div>`;
+  } catch (e) {
+    alert('提交失败，请重试');
+    answered = false;
+  }
+}
+
+function nextQuestion() {
+  currentIdx++;
+  renderQuestion();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showComplete() {
+  const h = getTodayHistory();
+  const score = h.score || 0;
+  const total = questions.length;
+  document.getElementById('completeScore').innerHTML = `${score}<span> / ${total}</span>`;
+
+  if (score === total) {
+    document.getElementById('completeEmoji').textContent = '🏆';
+    document.getElementById('completeMsg').textContent = '全部正确！你的审美直觉非常出色';
+  } else if (score >= total * 0.6) {
+    document.getElementById('completeEmoji').textContent = '🎉';
+    document.getElementById('completeMsg').textContent = '不错的表现，继续保持每日训练';
+  } else {
+    document.getElementById('completeEmoji').textContent = '💪';
+    document.getElementById('completeMsg').textContent = '多观察多比较，审美是可以训练的';
+  }
+  showScreen('complete');
+}
+
+function renderStats() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startPad = (firstDay.getDay() + 6) % 7;
+
+  let html = '';
+  for (let i = 0; i < startPad; i++) html += '<div class="cal-day"></div>';
+  const today = todayStr();
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const h = stats.history[ds];
+    let cls = 'cal-day';
+    if (h && h.completed) cls += ' done';
+    if (ds === today) cls += ' today';
+    html += `<div class="${cls}">${d}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+
+  const cats = { color:'🎨 色彩', typography:'✏️ 排版', layout:'📐 构图', contrast:'◐ 对比', spacing:'↔ 间距' };
+  const catHtml = Object.entries(cats).map(([k, label]) => {
+    const cs = stats.categoryStats[k] || { correct: 0, total: 0 };
+    const pct = cs.total ? Math.round(cs.correct / cs.total * 100) : 0;
+    return `<div class="stat-row"><span class="label">${label}</span><span class="val">${cs.total ? pct+'%' : '—'}</span></div>`;
+  }).join('');
+  document.getElementById('catStats').innerHTML = catHtml;
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const map = { home:'screenHome', quiz:'screenQuiz', complete:'screenComplete', stats:'screenStats', loading:'screenLoading' };
+  document.getElementById(map[name]).classList.add('active');
+}
+
+function goHome() {
+  renderHome();
+  switchTab('home');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  if (tab === 'home') {
+    document.getElementById('tabHome').classList.add('active');
+    renderHome();
+    showScreen('home');
+  } else {
+    document.getElementById('tabStats').classList.add('active');
+    renderStats();
+    showScreen('stats');
+  }
+}
+
+loadQuestions();
+</script>
+</body>
+</html>
